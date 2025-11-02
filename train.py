@@ -199,16 +199,29 @@ def main(args):
     # Setup optimizer (we used default Adam betas=(0.9, 0.999) and a constant learning rate of 1e-4 in our paper):
     if args.allow_tf32:
         torch.backends.cuda.matmul.allow_tf32 = True
-        torch.backends.cudnn.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True 
 
-    optimizer = torch.optim.AdamW(
-        model.parameters(),
-        lr=args.learning_rate,
-        betas=(args.adam_beta1, args.adam_beta2),
-        weight_decay=args.adam_weight_decay,
-        eps=args.adam_epsilon,
-    )    
-    
+    if args.use_8bit_optim:
+        try:
+            import bitsandbytes as bnb
+        except ImportError:
+            raise ImportError("Please install bitsandbytes to use 8-bit optimizers: pip install bitsandbytes")
+        optimizer = bnb.optim.AdamW8bit(
+            model.parameters(),
+            lr=args.learning_rate,
+            betas=(args.adam_beta1, args.adam_beta2),
+            weight_decay=args.adam_weight_decay,
+            eps=args.adam_epsilon,
+        )
+    else:
+        optimizer = torch.optim.AdamW(
+            model.parameters(),
+            lr=args.learning_rate,
+            betas=(args.adam_beta1, args.adam_beta2),
+            weight_decay=args.adam_weight_decay,
+            eps=args.adam_epsilon,
+        )
+
     # Setup data:
     train_dataset = CustomDataset(args.data_dir)
     local_batch_size = int(args.batch_size // accelerator.num_processes)
@@ -264,14 +277,14 @@ def main(args):
     )
 
     # Labels to condition the model with (feel free to change):
-    sample_batch_size = 64 // accelerator.num_processes
+    sample_batch_size = 16 // accelerator.num_processes
     gt_raw_images, gt_xs, _ = next(iter(train_dataloader))
     assert gt_raw_images.shape[-1] == args.resolution
     gt_xs = gt_xs[:sample_batch_size]
     gt_xs = sample_posterior(
         gt_xs.to(device), latents_scale=latents_scale, latents_bias=latents_bias
         )
-    ys = torch.randint(1000, size=(sample_batch_size,), device=device)
+    ys = torch.randint(args.num_classes, size=(sample_batch_size,), device=device)
     ys = ys.to(device)
     # Create sampling noise:
     n = ys.size(0)
@@ -351,6 +364,7 @@ def main(args):
                         guidance_high=1.,
                         path_type=args.path_type,
                         heun=False,
+                        num_classes=args.num_classes,
                     ).to(torch.float32)
                     samples = vae.decode((samples -  latents_bias) / latents_scale).sample
                     gt_samples = vae.decode((gt_xs - latents_bias) / latents_scale).sample
@@ -416,6 +430,7 @@ def parse_args(input_args=None):
     parser.add_argument("--checkpointing-steps", type=int, default=50000)
     parser.add_argument("--gradient-accumulation-steps", type=int, default=1)
     parser.add_argument("--learning-rate", type=float, default=1e-4)
+    parser.add_argument("--use-8bit-optim", action="store_true", default=False, help="Use bitsandbytes 8-bit AdamW")
     parser.add_argument("--adam-beta1", type=float, default=0.9, help="The beta1 parameter for the Adam optimizer.")
     parser.add_argument("--adam-beta2", type=float, default=0.999, help="The beta2 parameter for the Adam optimizer.")
     parser.add_argument("--adam-weight-decay", type=float, default=0., help="Weight decay to use.")
