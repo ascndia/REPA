@@ -11,7 +11,7 @@ import torch.nn as nn
 import numpy as np
 import math
 from timm.models.vision_transformer import PatchEmbed, Attention, Mlp
-
+from functools import partial  
 
 def build_mlp(hidden_size, projector_dim, z_dim):
     return nn.Sequential(
@@ -111,8 +111,12 @@ class SiTBlock(nn.Module):
         super().__init__()
         self.norm1 = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
         self.attn = Attention(
-            hidden_size, num_heads=num_heads, qkv_bias=True, qk_norm=block_kwargs["qk_norm"]
-            )
+            hidden_size, 
+            num_heads=num_heads, 
+            qkv_bias=True, 
+            qk_norm=block_kwargs.get("qk_norm", False),
+            norm_layer=partial(nn.LayerNorm, eps=1e-6)  
+        )
         if "fused_attn" in block_kwargs.keys():
             self.attn.fused_attn = block_kwargs["fused_attn"]
         self.norm2 = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)

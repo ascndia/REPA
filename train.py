@@ -48,7 +48,7 @@ def preprocess_raw_image(x, enc_type):
     elif 'dinov2' in enc_type:
         x = x / 255.
         x = Normalize(IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD)(x)
-        x = torch.nn.functional.interpolate(x, 224 * (resolution // 256), mode='bicubic')
+        x = torch.nn.functional.interpolate(x, 224 * 1 if (resolution == 128) else (resolution // 256), mode='bicubic')
     elif 'dinov1' in enc_type:
         x = x / 255.
         x = Normalize(IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD)(x)
@@ -314,6 +314,14 @@ def main(args):
                         z = encoder.forward_features(raw_image_)
                         if 'mocov3' in encoder_type: z = z = z[:, 1:] 
                         if 'dinov2' in encoder_type: z = z['x_norm_patchtokens']
+                        L_sit = (latent_size // 2) ** 2
+                        if z.shape[1] != L_sit:
+                            B, L_dino, D = z.shape
+                            H_dino = W_dino = int(L_dino**0.5)
+                            H_sit = W_sit = int(L_sit**0.5)
+                            z = z.reshape(B, H_dino, W_dino, D).permute(0, 3, 1, 2)
+                            z = F.adaptive_avg_pool2d(z, (H_sit, W_sit))
+                            z = z.permute(0, 2, 3, 1).reshape(B, L_sit, D)
                         zs.append(z)
 
             with accelerator.accumulate(model):
@@ -417,7 +425,7 @@ def parse_args(input_args=None):
 
     # dataset
     parser.add_argument("--data-dir", type=str, default="../data/imagenet256")
-    parser.add_argument("--resolution", type=int, choices=[256, 512], default=256)
+    parser.add_argument("--resolution", type=int, choices=[128, 256, 512], default=256)
     parser.add_argument("--batch-size", type=int, default=256)
 
     # precision

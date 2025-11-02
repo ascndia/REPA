@@ -8,7 +8,7 @@ source "${CONDA_BASE}/etc/profile.d/conda.sh"
 conda activate ai
 
 
-DATA_DIR="/opt/data/batik-sd-vae/"
+DATA_DIR="/opt/data/celeba_hq-sd-vae/"
 # OUTPUT_DIR="/opt/output/batik-fm/sit-xl-2-256-repa/"
 # WANDB_DIR="/opt/output/wandb/sit-xl-2-256-repa/"
 # WANDB_PROJ="batik-fm"
@@ -43,14 +43,16 @@ DATA_DIR="/opt/data/batik-sd-vae/"
 #   --max-train-steps ${MAX_TRAIN_STEPS} \
 #   --proj-coeff 0.5  # proj-coeff > 0 to enable REPA, otherwise set proj-coeff = 0 for standard training
 
+IMAGENET_SIZE=12000000
+DATA_SIZE=30000
 
 ORIGINAL_BATCH_SIZE=256
 ORIGINAL_MAX_TRAIN_STEPS=4000000
 
-DIVIDE_FACTOR=4
+DIVIDE_FACTOR=1
 
 BATCH_SIZE=$((ORIGINAL_BATCH_SIZE / DIVIDE_FACTOR))
-MAX_TRAIN_STEPS=$((ORIGINAL_MAX_TRAIN_STEPS * DIVIDE_FACTOR))
+MAX_TRAIN_STEPS=$(((ORIGINAL_MAX_TRAIN_STEPS * DIVIDE_FACTOR) * DATA_SIZE / IMAGENET_SIZE))
 
 accelerate launch train.py \
   --report-to="wandb" \
@@ -60,7 +62,7 @@ accelerate launch train.py \
   --path-type="linear" \
   --prediction="v" \
   --weighting="uniform" \
-  --model="SiT-XL/2" \
+  --model="SiT-B/2" \
   --enc-type="dinov2-vit-b" \
   --proj-coeff=0.5 \
   --encoder-depth=8 \
@@ -70,5 +72,7 @@ accelerate launch train.py \
   --batch-size ${BATCH_SIZE} \
   --max-train-steps ${MAX_TRAIN_STEPS} \
   --use-8bit-optim \
-  --num-classes 20 \
-  --resolution 256 \
+  --num-classes 1 \
+  --resolution 128 \
+  --cfg-prob 0 \
+  --qk-norm

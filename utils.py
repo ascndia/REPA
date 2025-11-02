@@ -51,7 +51,7 @@ def fix_mocov3_state_dict(state_dict):
 
 @torch.no_grad()
 def load_encoders(enc_type, device, resolution=256):
-    assert (resolution == 256) or (resolution == 512)
+    assert (resolution == 128) or (resolution == 256) or (resolution == 512)
     
     enc_names = enc_type.split(',')
     encoders, architectures, encoder_types = [], [], []
@@ -92,7 +92,10 @@ def load_encoders(enc_type, device, resolution=256):
             else:
                 encoder = torch.hub.load('facebookresearch/dinov2', f'dinov2_vit{model_config}14')
             del encoder.head
-            patch_resolution = 16 * (resolution // 256)
+            if( resolution == 128):
+                patch_resolution = 16
+            else:
+                patch_resolution = 16 * (resolution // 256)
             encoder.pos_embed.data = timm.layers.pos_embed.resample_abs_pos_embed(
                 encoder.pos_embed.data, [patch_resolution, patch_resolution],
             )
