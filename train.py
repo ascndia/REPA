@@ -397,6 +397,22 @@ def main(args):
         if global_step >= args.max_train_steps:
             break
 
+    # Save final checkpoint (ensure you don't lose last state for short runs)
+    if accelerator.is_main_process:
+        try:
+            final_checkpoint = {
+                "model": model.module.state_dict() if hasattr(model, "module") else model.state_dict(),
+                "ema": ema.state_dict(),
+                "opt": optimizer.state_dict(),
+                "args": args,
+                "steps": global_step,
+            }
+            final_path = f"{checkpoint_dir}/{global_step:07d}.pt"
+            torch.save(final_checkpoint, final_path)
+            logger.info(f"Saved final checkpoint to {final_path}")
+        except Exception as e:
+            logger.warning(f"Final checkpoint save failed: {e}")
+
     model.eval()  # important! This disables randomized embedding dropout
     # do any sampling/FID calculation/etc. with ema (or model) in eval mode ...
     

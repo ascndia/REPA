@@ -43,11 +43,11 @@ DATA_DIR="/opt/data/celeba_hq-sd-vae/"
 #   --max-train-steps ${MAX_TRAIN_STEPS} \
 #   --proj-coeff 0.5  # proj-coeff > 0 to enable REPA, otherwise set proj-coeff = 0 for standard training
 
-IMAGENET_SIZE=12000000
-DATA_SIZE=30000
+IMAGENET_SIZE=1_200_000
+DATA_SIZE=30_000
 
 ORIGINAL_BATCH_SIZE=256
-ORIGINAL_MAX_TRAIN_STEPS=4000000
+ORIGINAL_MAX_TRAIN_STEPS=400_000
 
 DIVIDE_FACTOR=1
 
